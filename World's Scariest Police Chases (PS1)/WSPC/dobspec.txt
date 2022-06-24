@@ -1,0 +1,196 @@
+
+=== section 01: DOB ===
+
+contains 2 sections:
+- section type 02 (image)
+- section type 04 (mesh)
+
+
+=== section 02: image ===
+
+contains 3+ sections:
+- section type 03 (count/bitmap/palette) count:1+
+- section type 14 (string table)
+- section type 15 (image metadata)
+
+=== section 03: image data
+
+header length = 4 bytes
+
+data:
+- u16 unknown
+- u16 image_count
+- u8[32768] image_bitmap_data
+- RGBa32[64] image_palette_data
+	- RGBa32 = u8[3] rgb; bool_u8 opaque (1 - opaque, 0 - transparent)
+
+=== section 14 (0E): string table
+
+contains packed null-terminated strings
+
+=== section 15 (0F): image metadata ===
+
+entry length = 12 bytes
+# entries = # images
+
+data:
+- u32 name_offset (points to null-terminated strings in section 14)
+- u16 texpage_number
+- u16 palette_number
+- u8 pos_x
+- u8 pos_y
+- u8 size_x
+- u8 size_y
+
+
+=== section 04: mesh ===
+
+contains sections:
+- section type 05 (mesh data)
+- section type 07 (string table)
+- section type 06 (mesh metadata)
+- [optional] section type 21 (???) --- in cars, not in skydomes
+- [optional] section type 23 (???)
+- [optional] section type 22 (???)
+
+=== section 05: mesh data ===
+
+header length = 44 bytes (0x2C)
+
+data:
+- @00 u32 unknown_1
+- @04 u32 unknown (#positions? values seen: skydome:[60] car/0:[65] car/1:[65])
+- @08 u32 unknown (values seen: skydome:[9] car/0:[61] car/1:[63])
+- @0C u32 unknown_offset_fc (points close to face data? values seen: skydome:[668] car/0:[1540] car/1:[1572])
+- @10 u32 unknown_offset_tc (points at texcoord data? values seen: skydome:[524] car/0:[564] car/1:[564])
+- @14 u32 unknown_0
+- @18 u32 pos_offset (values seen: 44)
+- @1C u32 unknown_0
+- @20 u32 unknown_same_as_0x10
+- @24 u32[2] unknown_0
+
+face header? skydome@668
+- @29C u32 unknown_offset: 11548 (bounding sphere radius?)
+- @2A0 u8[4] unknown: 00 00 22 FC
+- @2A4 u32 unknown_0
+- @2A8 u32 unknown_offset: points 8 bytes forward (2B0)
+- @2AC u32 unknown_0
+- @2B0 u32 unknown_1 - number of array entries?
+- @2B4 u32 unknown_offset: points 4 bytes forward (2B8)
+- @2B8 u8[4] unknown: 07 00 00 32 (last byte = face count)
+- @2BC u32 unknown_offset: (2C0) - seems to be start of quad data (1400 bytes, 50 faces)
+
+face header? car@1540
+- @604 u32 unknown_offset: 753 (bounding sphere radius?)
+- @608 u8[4] unknown: 00 00 19 00
+- @60C u8[4] unknown: A8 FF 00 00
+- @610 u32 unknown_offset: points 8 bytes forward (618)
+- @614 u32 unknown_0
+- @618 u32 unknown_2 - number of array entries?
+- @61C u32 unknown_offset: points 4 bytes forward (620)
+- @620 u8[4] unknown: 03 00 00 0A (last byte = face count)
+- @624 u32 unknown_offset: 1584 (0x630) - seems to be start of triangle data (240 bytes, 10 faces)
+- @628 u8[4] unknown: 07 00 00 3A (last byte = face count)
+- @62C u32 unknown_offset: 1824 (0x720) - seems to be start of quad data (1624 bytes, 58 faces)
+
+car: header data reappears at 3448 (D78)
+
+=== section 07: string table ===
+
+contains packed null-terminated strings, each string is 4-aligned
+
+=== section 06: mesh metadata ===
+
+entry length = 56 bytes
+
+data:
+- @00 u32 unknown_enum_or_flags (values seen: skydome:[1, 7] car:[23])
+- @04 u32 unknown_offset (values seen: skydome:[0, 33] car:[0, 3448, 6928, 10408, 10564, 10792, ...])
+	- in car, it seems to be an offset into mesh file
+- @08 i32 pos_x
+- @0C i32 pos_y
+- @10 i32 pos_z
+- @14 u32[3] unknown_zeroes
+- @20 u32 unknown_4096
+- @24 u32 unknown_size (bounding sphere radius? value seen: skydome:[0, 11552] car:[138, 750, ...])
+- @28 u32 name_offset (points to null-terminated strings in section 07)
+- @2C u32[2] unknown_all_or_nothing (FF or 00, skydome is FF only, car has both)
+- @34 u32 unknown_num (values seen: skydome:[0] car:[1, 2, 3, 0])
+
+
+
+=== DAY.STR ===
+
+observations:
+- found mesh data (section 05) @ 156FC
+	- string table immediately before
+	- offsets 5EEC (mesh?) and 5EE0 (string?) before
+	- if true, F810 or nearby may be start of file
+- found a long array of 64x64 textures @ AC81C0
+	- actually it might start @ AC2800
+	- and first contains 128x64(?) textures
+	- prefix: 29368 28268 (72B8 6E6C) diff: 1100 (44C)
+	- it ends at around AD0B00 (length=E300h/58112?)
+- found ":ENDSUB:" @ AC1F88 amid what appears to be mesh data(?) starting @ AC1120
+- another array of textures @ 28D1000
+	- prefix: 27888 26960 (6CF0 6950) diff: 928 (3A0)
+- first array of textures @ E800
+	- prefix: 2444 0 (98C 0)
+	- consists of one (1) 64x64 4bit texture, followed by a RGBa32[16] palette
+	- length of data: 2112 (840)
+	- length of prior padding sequence: 1640 (668)
+	- is the start of the file @ D800?
+		- length = 6208 (1840)
+		- >> 2 = 1552 (610)
+		- >> 3 = 776 (308)
+		- >> 4 = 388 (184)
+		- >> 5 = 194 (C2)
+		- >> 6 = 97 (61)
+	- next files @ F040, F800, 233C0, 23800, 3AB00, possibly also 29A00, 2882C, 15658, 144E8?
+- header:
+	- sig.pos. 6900 @ 10
+	- sig.pos. D800 @ 20
+
+- textures:
+	tex info: 92256 [17 05 28 05]
+	tex start: 94192
+	tex end: 144320
+	tex count:
+	- 128x64: 3
+	- 64x64: 14
+	- 64x32: 4
+	- 32x32: 5
+	- 32x16: 3
+	- total: 29
+	tex info actually starts at 92200 with u16[29] (count)
+	- followed by 29 u16 entries
+	- 128x64:
+		- 1023 / 253 3
+		- 1032 / 8 4
+		- 1033 / 9 4
+	- 64x64:
+		- 1052 / 28 4
+		- 1053 / 29 4
+		- 1054 / 30 4
+		- 1058 / 34 4
+	- 42 textures at 178004
+		- 1031 is 128x64
+		- 1032 is 128x64
+		- 1052 is 64x64
+	- 33 textures at 52802616
+		- 3289 is 128x64
+		- 3292 is 128x64
+		- 3296 is 128x64
+		- 3297 is 128x64
+		- 3327 is 64x64
+		- 3330 is 64x64
+	- u32[-2] of texture data points to the location in the file (before padding) ..
+	.. where the texture info is located ..
+		- this requires to only address the texture data and the rest is detectable via backtracking
+	- texture array alignment is 2048 (1 << 11)
+		- texture start in pages:
+			- day-first (off=55296 size=8192): 2 (off=4096)
+			- day-nth (off=1937408 size=6144): 1 (off=2048)
+			- day-nth2 (off=9984000 size=20480): 6 (off=12288)
+			- these match the "flags" in the file table
+			- 

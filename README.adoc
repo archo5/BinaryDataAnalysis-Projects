@@ -1,0 +1,4 @@
+
+= Binary data analysis projects
+
+Usually trying to parse the visual/text assets from various games.
